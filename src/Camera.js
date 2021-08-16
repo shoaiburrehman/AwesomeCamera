@@ -7,6 +7,7 @@ import { ProcessingManager } from 'react-native-video-processing';
 import {Stopwatch, Timer} from 'react-native-stopwatch-timer';
 import moment from "moment";
 import ModalView from './ModalView';
+import useOrientation from './orientation';
 
 const Camera = ({navigation}) => {
     const cameraRef = useRef();
@@ -24,6 +25,8 @@ const Camera = ({navigation}) => {
         uri: '',
         type: ''
     })
+
+    const orientation = useOrientation();
 
     const onCameraAction = async() => {
         console.warn("cameraRef: ", cameraRef)
@@ -51,7 +54,7 @@ const Camera = ({navigation}) => {
         }
         if(cameraType === "Photo"){
             let options = {
-                quality: 0.85,
+                quality: 1,
                 fixOrientation: true,
                 forceUpOrientation: true,
                 // base64: true
@@ -74,7 +77,8 @@ const Camera = ({navigation}) => {
     const SaveToStorage = (uri, camType, fileName) => {
         let uriPicture = uri.replace('file://', '');
         //RNFS.copyFile(data.uri, RNFS.PicturesDirectoryPath + '/Videos/' + fileName).then(() => {
-        RNFS.copyFile(uriPicture, '/sdcard/DCIM/' + fileName).then(() => {
+        RNFS.copyFile(uriPicture, "/storage/emulated/0/Download/" + fileName).then(() => {
+        // RNFS.copyFile(uriPicture, '/sdcard/DCIM/' + fileName).then(() => {
             ToastAndroid.show( camType+' Saved', ToastAndroid.SHORT)
             console.warn(camType+" copied locally!!");
         }, (error) => {
@@ -113,7 +117,7 @@ const Camera = ({navigation}) => {
             360,
             360,
             'JPEG',
-            80,
+            95,
             0,
             null,
         )
@@ -122,7 +126,7 @@ const Camera = ({navigation}) => {
             let imageName = uri;
             let uploadUri = resizeResponse.uri;
             let fileName = `${camType}_${resizeResponse.name}`;
-            SaveToStorage(uri, camType, fileName);
+            SaveToStorage(uploadUri, camType, fileName);
             setState({
                 fileName: imageName,
                 uri: uploadUri,
@@ -158,7 +162,7 @@ const Camera = ({navigation}) => {
         <View style={styles.container}>
             <ModalView 
                 title={'Select Size you want to save'} 
-                containerStyle={styles.containerStyle} 
+                containerStyle={{width: orientation === 'PORTRAIT' ? '70%' : '35%', paddingVertical: orientation === 'PORTRAIT' ? '70%' : '10%'}} 
                 style={styles.modalStyle} 
                 visible={ filterView } 
                 setVisible={ setFilterView } 
@@ -241,10 +245,6 @@ const styles = StyleSheet.create({
     container: {
       flex: 1,
     },
-    containerStyle:{
-        width: '30%',
-        paddingVertical: '20%'
-    },    
     modalStyle:{
         flex: 1,
         justifyContent: 'center',

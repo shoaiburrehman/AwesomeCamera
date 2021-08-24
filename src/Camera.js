@@ -5,6 +5,7 @@ import RNFS from 'react-native-fs';
 import ImageResizer from 'react-native-image-resizer';
 import { ProcessingManager } from 'react-native-video-processing';
 import {Stopwatch, Timer} from 'react-native-stopwatch-timer';
+import Icon from "react-native-vector-icons/Ionicons";
 import moment from "moment";
 import ModalView from './ModalView';
 import useOrientation from './orientation';
@@ -13,6 +14,8 @@ const Camera = ({navigation}) => {
     const cameraRef = useRef();
     const [loader, setLoader] = useState(false)
     const [cameraType, setCameraType] = useState('Photo')
+    const [captureType, setCaptureType] = useState('back')
+    const [mirrorMode, setMirrorMode] = useState(false)
     const [toggleCameraAction, setToggleCameraAction] = useState(false)
     const [ filter, setFilter ] = useState(['Unchanged','Compressed']);
     const [isStopwatchStart, setIsStopwatchStart] = useState(false);
@@ -158,6 +161,12 @@ const Camera = ({navigation}) => {
         };
     }
 
+    const cameraReverse = () => {
+        if(captureType === 'back') setCaptureType('front');
+        else setCaptureType('back');
+        setMirrorMode(!mirrorMode);
+    }
+
     return (
         <View style={styles.container}>
             <ModalView 
@@ -173,7 +182,8 @@ const Camera = ({navigation}) => {
                 ref={cameraRef}
                 style = {styles.container}
                 captureAudio={true}
-                type={RNCamera.Constants.Type.back}
+                type={captureType === 'back' ? RNCamera.Constants.Type.back : RNCamera.Constants.Type.front}
+                mirrorImage={mirrorMode}
                 androidCameraPermissionOptions={{
                     title: 'Permission to use camera',
                     message: 'We need your permission to use your camera',
@@ -217,23 +227,29 @@ const Camera = ({navigation}) => {
                             <TouchableOpacity style={{borderBottomColor: cameraType === 'Video' ? 'yellow': 'white', borderBottomWidth: cameraType === 'Video' ? 1 : 0, marginLeft: 30}} onPress={() => setCameraType('Video')}>
                                 <Text style={[styles.textStyle, {color: cameraType === 'Video' ? 'yellow' : 'white'}]}>Video</Text>
                             </TouchableOpacity>
+                            <View style={{position: 'absolute', right: 20}}>
+                                <TouchableOpacity activeOpacity={0.7} style={styles.touchableCamera} onPress = {() => cameraReverse()}>
+                                    <View style={styles.cameraView}>
+                                        <Icon name = "camera-reverse" size = { 30 } color = "white"/>
+                                    </View>
+                                </TouchableOpacity>
+                            </View>
                         </>
                     }
                 </View>
                 <View style={styles.onPictureView}>
-                    {
-                        loader && ((cameraType === "Photo") || (cameraType === "Video" && !toggleCameraAction)) ?
-                            <View style={styles.onPictureClick}>
-                                <ActivityIndicator size={75} color="#ffffff" />
-                            </View>
-                        :
-                            <TouchableOpacity activeOpacity={0.8} style={styles.onPictureClick} onPress={() => onCameraAction()}>
-                                {cameraType === "Video" ?
-                                    <View style={[styles.onPictureCircleView, {backgroundColor: toggleCameraAction ? 'red' : 'white'}]}></View>
-                                :
-                                    <View style={styles.onPictureCircleView}></View>
-                                }
-                            </TouchableOpacity>
+                    {loader && ((cameraType === "Photo") || (cameraType === "Video" && !toggleCameraAction)) ?
+                        <View style={styles.onPictureClick}>
+                            <ActivityIndicator size={75} color="#ffffff" />
+                        </View>
+                    :
+                        <TouchableOpacity activeOpacity={0.8} style={styles.onPictureClick} onPress={() => onCameraAction()}>
+                            {cameraType === "Video" ?
+                                <View style={[styles.onPictureCircleView, {backgroundColor: toggleCameraAction ? 'red' : 'white'}]}></View>
+                            :
+                                <View style={styles.onPictureCircleView}></View>
+                            }
+                        </TouchableOpacity>
                     }
                 </View>
             </RNCamera>
@@ -288,6 +304,17 @@ const styles = StyleSheet.create({
         height: 65,
         borderRadius: 65/2,
         borderColor: 'white',
+    },
+    touchableCamera: {
+        width: 60, 
+        height: 60, 
+        borderRadius: 60/2, 
+        backgroundColor: 'rgba(0,0,0,0.3)', 
+    },
+    cameraView: {
+        flex: 1, 
+        alignSelf: 'center', 
+        justifyContent: 'center'
     }
 });
 

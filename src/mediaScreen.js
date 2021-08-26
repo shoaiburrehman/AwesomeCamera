@@ -10,7 +10,7 @@ const showImage = (props) => {
         <ImageBackground 
           resizeMode={'contain'} 
           style={Styles.imageBackground} 
-          source={{ uri: `data:image/gif;base64,${props.route.params.thumbnail}` }} poster={props.route.params.thumbnail}
+          source={{ uri: props.route.params.thumbnail }} poster={props.route.params.thumbnail}
         >
           <TouchableOpacity style={{ alignSelf: 'center', padding: 5 }} onPress={() => props.navigation.navigate('videoScreen', {uri: props.route.params.uri})}>
             <Icon name = "play" size = { 25 } color = "white"/>

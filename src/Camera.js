@@ -3,16 +3,21 @@ import { TouchableOpacity, View, Text, StyleSheet, Alert, ToastAndroid, Activity
 import {RNCamera} from 'react-native-camera';
 import RNFS from 'react-native-fs';
 import ImageResizer from 'react-native-image-resizer';
-import { ProcessingManager } from 'react-native-video-processing';
+// import { ProcessingManager } from 'react-native-video-processing';
+import RNVideoHelper from 'react-native-video-helper';
+import { createThumbnail } from "react-native-create-thumbnail";
 import {Stopwatch, Timer} from 'react-native-stopwatch-timer';
 import Icon from "react-native-vector-icons/Ionicons";
 import moment from "moment";
 import ModalView from './ModalView';
 import useOrientation from './orientation';
+import { requestStoragePermission } from './requestPermission';
 
 const Camera = ({navigation}) => {
     const cameraRef = useRef();
     const [loader, setLoader] = useState(false)
+    const [videoCompressedLoader, setVideoCompressedLoader] = useState(false)
+    const[videoCompressProgress, setVideoCompressProgress] = useState(0)
     const [cameraType, setCameraType] = useState('Photo')
     const [captureType, setCaptureType] = useState('back')
     const [mirrorMode, setMirrorMode] = useState(false)
@@ -33,12 +38,18 @@ const Camera = ({navigation}) => {
 
     const onCameraAction = async() => {
         console.warn("cameraRef: ", cameraRef)
+        let options = {
+            quality: 1,
+            fixOrientation: true,
+            forceUpOrientation: true,
+            // base64: true
+        };
         if(cameraRef && cameraType === "Video" && !toggleCameraAction){
            setToggleCameraAction(true)
            setLoader(true)
             try {
                 setIsStopwatchStart(true)
-                const { uri, codec = "mp4" } = await cameraRef.current.recordAsync();
+                const { uri, codec = "mp4" } = await cameraRef.current.recordAsync(options);
                 setPictureURI(uri);
                 setFilterView(true);
                 // SaveToStorage(uri, cameraType);
@@ -56,12 +67,6 @@ const Camera = ({navigation}) => {
             setToggleCameraAction(false)
         }
         if(cameraType === "Photo"){
-            let options = {
-                quality: 1,
-                fixOrientation: true,
-                forceUpOrientation: true,
-                // base64: true
-            };
             try {
                 setLoader(true)
                 const data = await cameraRef.current.takePictureAsync(options);
@@ -77,16 +82,36 @@ const Camera = ({navigation}) => {
         }
     }
     
-    const SaveToStorage = (uri, camType, fileName) => {
-        let uriPicture = uri.replace('file://', '');
-        //RNFS.copyFile(data.uri, RNFS.PicturesDirectoryPath + '/Videos/' + fileName).then(() => {
-        RNFS.copyFile(uriPicture, "/storage/emulated/0/Download/" + fileName).then(() => {
-        // RNFS.copyFile(uriPicture, '/sdcard/DCIM/' + fileName).then(() => {
-            ToastAndroid.show( camType+' Saved', ToastAndroid.SHORT)
-            console.warn(camType+" copied locally!!");
-        }, (error) => {
-            Alert.alert("CopyFile fail for "+camType+": " + error);
-        });
+    const SaveToStorage = async(uri, camType, fileName) => {
+        const result = await requestStoragePermission();
+        if (result == "granted") {
+            let uriPicture = uri.replace('file://', '');
+            //RNFS.copyFile(data.uri, RNFS.PicturesDirectoryPath + '/Videos/' + fileName).then(() => {
+            RNFS.copyFile(uriPicture, "/storage/emulated/0/Download/" + fileName).then(() => {
+            // RNFS.copyFile(uriPicture, '/sdcard/DCIM/' + fileName).then(() => {
+                ToastAndroid.show( camType+' Saved', ToastAndroid.SHORT)
+                if(camType === 'Video'){
+                    createThumbnail({
+                        url: uri,
+                        timeStamp: 10000,
+                      })
+                        .then(response => {
+                            console.warn({ response })
+                            navigation.navigate("mediaScreen", {thumbnail: response.path, uri: uriPicture})
+                        })
+                        .catch(err => console.warn({ err }));
+                }
+                console.warn(camType+" copied locally!!");
+            }, (error) => {
+                Alert.alert("CopyFile fail for "+camType+": " + error);
+            });
+        }
+        else {
+            Alert.alert('Permission Request', "Please allow storage permission from app settings.", [
+                {text: 'Open Settings', onPress: () => Linking.openSettings()}
+            ]);
+        }
+
     }
 
     const selectSizeToSave = async(i) => {
@@ -98,8 +123,7 @@ const Camera = ({navigation}) => {
             }
             else{
                 fileName = `${cameraType}_${moment().format('YYYYMMDDHHMMSS')}.mp4`;
-                const thumbnail =  await ProcessingManager.getPreviewForSecond(uriPicture);
-                navigation.navigate("mediaScreen", {thumbnail: thumbnail, uri: uriPicture})
+                // const thumbnail =  await ProcessingManager.getPreviewForSecond(uriPicture);
                 SaveToStorage(uriPicture, cameraType, fileName);
             }
         }
@@ -143,22 +167,41 @@ const Camera = ({navigation}) => {
     
     const compressVideo = async(uri, camType) => {
         let fileName = `${camType}_${moment().format('YYYYMMDDHHMMSS')}.mp4`;
-        const origin = await ProcessingManager.getVideoInfo(uri);
-        try{
-            const result = await ProcessingManager.compress(uri, {
-                width: origin.size && origin.size.width,
-                height: origin.size && origin.size.height,
-                bitrateMultiplier: 7,
-                minimumBitrate: 300000
-            })
-            const thumbnail =  await ProcessingManager.getPreviewForSecond(result.source);
-            navigation.navigate("mediaScreen", {thumbnail: thumbnail, uri: result.source})
-            SaveToStorage(result.source, camType, fileName);
-            console.warn("result compress vid: ", result);
-        }
-        catch(err) {
+        RNVideoHelper.compress(uri, {
+            startTime: 0, // optional, in seconds, defaults to 0
+            endTime: 100, //  optional, in seconds, defaults to video duration
+            quality: 'low', // default low, can be medium or high
+            defaultOrientation: 0 // By default is 0, some devices not save this property in metadata. Can be between 0 - 360
+        }).progress(value => {
+            setVideoCompressedLoader(true);
+            let compressTime = parseInt(value*100)
+            setVideoCompressProgress(compressTime)
+            console.warn('progress', value); // Int with progress value from 0 to 1
+        }).then(compressedUri => {
+            console.warn('compressedUri', compressedUri); // String with path to temporary compressed video
+            const compressed = `file://${compressedUri}`
+            setVideoCompressedLoader(false);
+            SaveToStorage(compressed, cameraType, fileName);
+        }).catch((err) => {
             Alert.alert("Compress Video Error", err);
-        };
+        });
+        
+        // const origin = await ProcessingManager.getVideoInfo(uri);
+        // try{
+        //     const result = await ProcessingManager.compress(uri, {
+        //         width: origin.size && origin.size.width,
+        //         height: origin.size && origin.size.height,
+        //         bitrateMultiplier: 7,
+        //         minimumBitrate: 300000
+        //     })
+        //     const thumbnail =  await ProcessingManager.getPreviewForSecond(result.source);
+        //     navigation.navigate("mediaScreen", {thumbnail: thumbnail, uri: result.source})
+        //     SaveToStorage(result.source, camType, fileName);
+        //     console.warn("result compress vid: ", result);
+        // }
+        // catch(err) {
+        //     Alert.alert("Compress Video Error", err);
+        // };
     }
 
     const cameraReverse = () => {
@@ -167,7 +210,16 @@ const Camera = ({navigation}) => {
         setMirrorMode(!mirrorMode);
     }
 
+    console.warn("videoCompressProgress: ", videoCompressProgress)
+    
     return (
+        <>
+        {videoCompressedLoader && 
+            <View style={styles.loading}>
+                <ActivityIndicator size='large' color="#ffffff" />
+                <Text style={{position: 'absolute', justifyContent: 'center', alignItems: 'center', color: '#ffffff', fontSize: 11}}>{videoCompressProgress}%</Text>
+            </View>
+        }
         <View style={styles.container}>
             <ModalView 
                 title={'Select Size you want to save'} 
@@ -184,6 +236,7 @@ const Camera = ({navigation}) => {
                 captureAudio={true}
                 type={captureType === 'back' ? RNCamera.Constants.Type.back : RNCamera.Constants.Type.front}
                 mirrorImage={mirrorMode}
+                playSoundOnCapture={true}
                 androidCameraPermissionOptions={{
                     title: 'Permission to use camera',
                     message: 'We need your permission to use your camera',
@@ -227,13 +280,11 @@ const Camera = ({navigation}) => {
                             <TouchableOpacity style={{borderBottomColor: cameraType === 'Video' ? 'yellow': 'white', borderBottomWidth: cameraType === 'Video' ? 1 : 0, marginLeft: 30}} onPress={() => setCameraType('Video')}>
                                 <Text style={[styles.textStyle, {color: cameraType === 'Video' ? 'yellow' : 'white'}]}>Video</Text>
                             </TouchableOpacity>
-                            <View style={{position: 'absolute', right: 20}}>
-                                <TouchableOpacity activeOpacity={0.7} style={styles.touchableCamera} onPress = {() => cameraReverse()}>
-                                    <View style={styles.cameraView}>
-                                        <Icon name = "camera-reverse" size = { 30 } color = "white"/>
-                                    </View>
-                                </TouchableOpacity>
-                            </View>
+                            <TouchableOpacity activeOpacity={0.7} style={styles.touchableCamera} onPress = {() => cameraReverse()}>
+                                <View style={styles.cameraView}>
+                                    <Icon name = "camera-reverse" size = { 30 } color = "white"/>
+                                </View>
+                            </TouchableOpacity>
                         </>
                     }
                 </View>
@@ -254,6 +305,7 @@ const Camera = ({navigation}) => {
                 </View>
             </RNCamera>
         </View>
+        </>
     );
 }
 
@@ -261,6 +313,15 @@ const styles = StyleSheet.create({
     container: {
       flex: 1,
     },
+    loading: {
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        width: '100%',
+        height: '100%',
+        zIndex: 1,
+        position: 'absolute',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },    
     modalStyle:{
         flex: 1,
         justifyContent: 'center',
@@ -306,6 +367,8 @@ const styles = StyleSheet.create({
         borderColor: 'white',
     },
     touchableCamera: {
+        position: 'absolute', 
+        right: 20,
         width: 60, 
         height: 60, 
         borderRadius: 60/2, 

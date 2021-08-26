@@ -16,6 +16,7 @@
     "react": "17.0.1",
     "react-native": "0.64.2",
     "react-native-camera": "^4.0.1",
+    "react-native-create-thumbnail": "^1.4.1",
     "react-native-fs": "^2.18.0",
     "react-native-image-resizer": "^1.4.5",
     "react-native-permissions": "^3.0.5",
@@ -24,7 +25,7 @@
     "react-native-stopwatch-timer": "0.0.21",
     "react-native-vector-icons": "^8.1.0",
     "react-native-video": "^5.1.1",
-    "react-native-video-processing": "^2.0.0"
+    "react-native-video-helper": "^1.5.0"
   },
   "devDependencies": {
     "@babel/core": "7.15.0",

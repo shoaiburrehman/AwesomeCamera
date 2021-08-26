@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { View, Text, StyleSheet, Button, Linking, Alert, TouchableOpacity } from 'react-native';
 import Icon from "react-native-vector-icons/FontAwesome";
-import { requestCameraPermission } from './requestCamera';
+import { requestCameraPermission } from './requestPermission';
 
 const HomeScreen = ({navigation}) => {
 

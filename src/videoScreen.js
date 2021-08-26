@@ -11,7 +11,11 @@ const VideoScreen = (props) => {
 
     const onLoad = () => {
         setIsLoading(false);
-    };
+    }
+
+    const onEnd = () => {
+        props.navigation.goBack()
+    }
 
     return (
         <View style={Styles.container}>
@@ -23,6 +27,7 @@ const VideoScreen = (props) => {
             <Video
                 onLoad={onLoad}
                 onLoadStart={onLoadStart}
+                onEnd={onEnd}
                 controls={true}
                 style={{flex: 1}}
                 resizeMode={'cover'}

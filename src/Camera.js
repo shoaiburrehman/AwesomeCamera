@@ -37,7 +37,6 @@ const Camera = ({navigation}) => {
     const orientation = useOrientation();
 
     const onCameraAction = async() => {
-        console.warn("cameraRef: ", cameraRef)
         let options = {
             quality: 1,
             fixOrientation: true,
@@ -45,8 +44,8 @@ const Camera = ({navigation}) => {
             // base64: true
         };
         if(cameraRef && cameraType === "Video" && !toggleCameraAction){
-           setToggleCameraAction(true)
-           setLoader(true)
+            setToggleCameraAction(true)
+            setLoader(true)
             try {
                 setIsStopwatchStart(true)
                 const { uri, codec = "mp4" } = await cameraRef.current.recordAsync(options);
@@ -70,7 +69,6 @@ const Camera = ({navigation}) => {
             try {
                 setLoader(true)
                 const data = await cameraRef.current.takePictureAsync(options);
-                console.warn("data: ", data);
                 setFilterView(true);
                 setPictureURI(data);
                 // SaveToStorage(data.uri, cameraType);
@@ -89,7 +87,7 @@ const Camera = ({navigation}) => {
             //RNFS.copyFile(data.uri, RNFS.PicturesDirectoryPath + '/Videos/' + fileName).then(() => {
             RNFS.copyFile(uriPicture, "/storage/emulated/0/Download/" + fileName).then(() => {
             // RNFS.copyFile(uriPicture, '/sdcard/DCIM/' + fileName).then(() => {
-                ToastAndroid.show( camType+' Saved', ToastAndroid.SHORT)
+                ToastAndroid.show( camType+' Saved to Download', ToastAndroid.SHORT)
                 if(camType === 'Video'){
                     createThumbnail({
                         url: uri,
@@ -101,7 +99,6 @@ const Camera = ({navigation}) => {
                         })
                         .catch(err => console.warn({ err }));
                 }
-                console.warn(camType+" copied locally!!");
             }, (error) => {
                 Alert.alert("CopyFile fail for "+camType+": " + error);
             });
@@ -149,7 +146,6 @@ const Camera = ({navigation}) => {
             null,
         )
         .then((resizeResponse) => {
-            console.warn("resizeResponse: ", resizeResponse)
             let imageName = uri;
             let uploadUri = resizeResponse.uri;
             let fileName = `${camType}_${resizeResponse.name}`;
@@ -176,32 +172,13 @@ const Camera = ({navigation}) => {
             setVideoCompressedLoader(true);
             let compressTime = parseInt(value*100)
             setVideoCompressProgress(compressTime)
-            console.warn('progress', value); // Int with progress value from 0 to 1
         }).then(compressedUri => {
-            console.warn('compressedUri', compressedUri); // String with path to temporary compressed video
             const compressed = `file://${compressedUri}`
             setVideoCompressedLoader(false);
             SaveToStorage(compressed, cameraType, fileName);
         }).catch((err) => {
             Alert.alert("Compress Video Error", err);
         });
-        
-        // const origin = await ProcessingManager.getVideoInfo(uri);
-        // try{
-        //     const result = await ProcessingManager.compress(uri, {
-        //         width: origin.size && origin.size.width,
-        //         height: origin.size && origin.size.height,
-        //         bitrateMultiplier: 7,
-        //         minimumBitrate: 300000
-        //     })
-        //     const thumbnail =  await ProcessingManager.getPreviewForSecond(result.source);
-        //     navigation.navigate("mediaScreen", {thumbnail: thumbnail, uri: result.source})
-        //     SaveToStorage(result.source, camType, fileName);
-        //     console.warn("result compress vid: ", result);
-        // }
-        // catch(err) {
-        //     Alert.alert("Compress Video Error", err);
-        // };
     }
 
     const cameraReverse = () => {
@@ -210,8 +187,6 @@ const Camera = ({navigation}) => {
         setMirrorMode(!mirrorMode);
     }
 
-    console.warn("videoCompressProgress: ", videoCompressProgress)
-    
     return (
         <>
         {videoCompressedLoader && 
@@ -383,7 +358,6 @@ const styles = StyleSheet.create({
 
 const options = {
     container: {
-        // backgroundColor: '#ffffff',
         padding: 5,
         borderRadius: 5,
         width: 200,
